@@ -1,0 +1,528 @@
+---
+title: "Carceral Facilities and Their OSHA Hazard and Toxicity Record"
+author: "Savannah Hunter"
+date: "6/3/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+# Load Packages and Data
+```{r}
+#### Load in Packages ####
+xfun::session_info('DT')
+library(DT)
+library("tidyverse")
+
+```
+
+```{r}
+
+#### Load in Data ####
+caprisons = read.csv(file = "CA_prison_insp_viol_2010_op_fac_long.csv", header = TRUE, stringsAsFactors = FALSE)
+
+```
+
+# Calculate the Statistics in the Long Dataset
+
+## Penalties
+
+```{r}
+# Total Initial Penalty for Establishments
+
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$iptotal = sum(estb$initial_penalty, na.rm = TRUE)
+  return(estb)
+}))
+
+
+# Total Current Penalty for Establishments 
+
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$cptotal = sum(estb$current_penalty, na.rm = TRUE)
+  return(estb)
+}))
+
+# Average Initial Penalty for Establishments 
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$ipavg = mean(estb$initial_penalty, na.rm = TRUE)
+  return(estb)
+}))
+    
+  # NAN appears for rows where the facility had no initial penalty and is thus     dividing by zero. I convert these to zero. 
+  caprisons$ipavg = as.numeric(gsub("NaN", 0, caprisons$ipavg))
+
+  # format to two decimals
+  caprisons$ipavg = as.numeric(formatC(caprisons$ipavg, digits = 2, format = "f"))
+  
+  
+# Average Current Penalty for Establishments
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$cpavg = mean(estb$current_penalty, na.rm = TRUE)
+  return(estb)
+}))
+
+  # NAN appears for rows where the facility had no initial penalty and is thus     dividing by zero. I convert these to zero. 
+  caprisons$cpavg = as.numeric(gsub("NaN", 0, caprisons$cpavg))
+  
+    # format to two decimals
+   caprisons$cpavg = as.numeric(formatC(caprisons$cpavg, digits = 2, format = "f"))
+
+# Total failure to abate penalty
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$fta_total = sum(estb$fta_penalty, na.rm = TRUE)
+  return(estb)
+}))
+
+```
+
+## Number of Times Inspected/Violations
+```{r}
+# Number of times inspected/violations. If they are only in there once, might be bc they were only inspected, no violations. Or they might have been inspected once, again later and have subsequent rows for each violation
+
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estab){
+  estab$nr_times_in_data = nrow(estab)
+  return(estab)
+}))
+
+
+# Number of total violations (not unique types of violations)
+# recode noviol True = 0, False = 1 so we can count the number of violations
+caprisons$no_violations = caprisons$noviol
+caprisons$no_violations = ifelse(grepl(TRUE, caprisons$no_violations), 0, 1)
+
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estab){
+  estab$nr_violations = sum((estab$no_violations))
+  return(estab)
+}))
+
+```
+
+## Number of Instances
+
+```{r}
+# Total number of instances of each violation
+
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$nr_instances_total = sum(estb$nr_instances, na.rm = TRUE)
+  return(estb)
+}))
+
+```
+
+## Gravity
+
+```{r}
+# A couple ways to think about this. Average gravity - however that does not tell us a sense of the magnitude (number) of the moderate or serious violations.
+
+# Separate out Low, Moderate, and High Gravity
+caprisons$high_gravity = ifelse(grepl(10, caprisons$gravity), 1, 0)
+caprisons$mod_gravity = ifelse(grepl(5, caprisons$gravity), 1, 0)
+caprisons$low_gravity = ifelse(caprisons$gravity == 1, 1, 0)
+
+
+# Total Serious Gravity
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$high_gravity_sum = sum(estb$high_gravity, na.rm = TRUE)
+  return(estb)
+}))
+
+# Total Moderate Gravity
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$mod_gravity_sum = sum(estb$mod_gravity, na.rm = TRUE)
+  return(estb)
+}))
+
+# Total Low Gravity
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$low_gravity_sum = sum(estb$low_gravity, na.rm = TRUE)
+  return(estb)
+}))
+
+
+```
+
+
+## Types of Violations
+
+```{r}
+# This variable describes if the violation was other than serious, serious, willful, or a repeat violation. Useful to understand in combo with gravity potentially. Gravity is used to create the penalty amount. While violation type gives us insight into if someone had the potential to become seriously injured. 
+
+# Recode the variables to dummy variables so we can count the number of violation types
+
+caprisons$other_than_serious = ifelse(grepl("O", caprisons$viol_type), 1, 0)
+caprisons$repeat_violations = ifelse(grepl("R", caprisons$viol_type), 1, 0)
+caprisons$serious_violations = ifelse(grepl("S", caprisons$viol_type), 1, 0)
+
+# Total other than serious
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$other_than_serious_sum = sum(estb$other_than_serious, na.rm = TRUE)
+  return(estb)
+}))
+
+# Total repeat
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$repeat_violations_sum = sum(estb$repeat_violations)
+  return(estb)
+}))
+
+# Total serious
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$serious_violations_sum = sum(estb$serious_violations)
+  return(estb)
+}))
+
+
+# view(caprisons[, c("estab_name", "viol_type", "repeat_violations", "repeat_violations_sum")])
+
+
+```
+
+
+
+## Number of People Exposed
+
+```{r}
+# An important thing to keep in mind is the total could be the same people exposed multiple times for multiple different exposures. So it's total number exposed for all violations.
+
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estab){
+  estab$total_exposed = sum(estab$nr_exposed, na.rm = TRUE)
+  return(estab)
+}))
+
+# view(caprisons[, c("estab_name", "nr_exposed", "total_exposed")])
+
+
+
+```
+
+## Average Number of People in Facility
+
+```{r}
+# Average Number of People in Facilities
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$avg_ppl_in_facility = mean(estb$nr_in_estab, na.rm = TRUE)
+  return(estb)
+}))
+
+  # format to no decimals
+   caprisons$avg_ppl_in_facility = as.numeric(formatC(caprisons$avg_ppl_in_facility, digits = 0, format = "f"))
+
+```
+
+
+# Data Cleaning Steps
+## Hazardous Substances and Standards
+
+```{r}
+# Recode the hazardous substances
+
+caprisons$hazsub1_recode = factor(caprisons$hazsub1,
+                                  levels = c("1340", "1430", "8120", 
+                                             "8870", "8880", "B418", "S227"),
+                                  labels = c("1340 - Gasoline", 
+                                             "1430 - Hydrogen Chloride",
+                                             "8120 - Fungi",
+                                             "8870 - Electrical Shock", 
+                                             "8880 - All Other Physical Hazards", 
+                                             "B418 - Bacteria", 
+                                             "S227 - Sodium Hypochlorite"))
+
+caprisons$hazsub2_recode = factor(caprisons$hazsub2,
+                                  levels = c("8880", "9523"),
+                                  labels = c("8880 - All Other Physical Hazards",
+                                             "9523 - Black Mold"))
+
+
+
+caprisons$hazsub3_recode = factor(caprisons$hazsub3,
+                                  levels = c("8870"),
+                                  labels = c("8870 - Electrical Shock"))
+# reassign as class character
+caprisons$hazsub1_recode = as.character(caprisons$hazsub1_recode)
+caprisons$hazsub2_recode = as.character(caprisons$hazsub2_recode)
+caprisons$hazsub3_recode = as.character(caprisons$hazsub3_recode)
+
+
+# Clean standards column
+
+# trim white space
+caprisons$standardc = trimws(caprisons$standard)
+# remove ()
+caprisons$standardc = gsub("\\(", "", caprisons$standardc)
+caprisons$standardc = gsub("\\)", "", caprisons$standardc)
+# remove spaces
+caprisons$standardc = gsub(" ", "", caprisons$standardc)
+# split column at letter
+caprisons$standardnumber = caprisons$standardc
+caprisons$standardnumber = gsub("[A-Za-z].*", "", caprisons$standardnumber)
+
+
+
+```
+
+## Zipcodes
+
+```{r}
+caprisons$site_zip = as.character(caprisons$site_zip)
+
+```
+
+
+# Reshape the Data to Wide Format
+```{r}
+# reshape the dataset to wide and keep only toxicity variables
+
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estab){
+  estab$estab_count = 1:nrow(estab)
+  return(estab)
+}))
+
+keepcolumns <- c("estab_name",  "site_address", "site_city", "site_state", "site_zip","estab_count", "nr_times_in_data", "nr_violations", "nr_instances_total", "total_exposed", "avg_ppl_in_facility", "low_gravity_sum", "mod_gravity_sum", "high_gravity_sum","other_than_serious_sum", "repeat_violations_sum", "serious_violations_sum", "cptotal", "iptotal", "ipavg", "cpavg", "fta_total", "hazsub1_recode", "hazsub2_recode", "hazsub3_recode", "standardnumber")
+
+
+caprisonsk = caprisons[keepcolumns]
+
+caprisons_wide = reshape(caprisonsk, idvar = "estab_name", timevar = "estab_count", direction = "wide")
+
+row.names(caprisons_wide) <- 1:nrow(caprisons_wide)
+
+
+```
+
+# Compile list of all Hazards and Standards Reported
+
+## Hazardous Substances
+```{r}
+# unique first then paste
+
+all_haz_string = apply(caprisons_wide, 1, FUN = function(vrow) {
+  
+  # get all haz columns and get the unique hazardous substances
+  haz1 = vrow[names(vrow)[grepl("hazsub1_recode\\.\\d", names(vrow), perl = TRUE)]]
+  haz1 = unique(haz1)
+  
+  haz2 = vrow[names(vrow)[grepl("hazsub2_recode\\.\\d", names(vrow), perl = TRUE)]]
+  haz2 = unique(haz2)
+  
+  haz3 = vrow[names(vrow)[grepl("hazsub3_recode\\.\\d", names(vrow), perl = TRUE)]]
+  haz3 = unique(haz3)
+  
+  # make sure unique across all three hazsub variables
+  all_haz = unique(c(haz1, haz2, haz3))
+  
+  # combine into single string
+  haz_string = paste0(all_haz[!is.na(all_haz)], collapse = ", ")
+  
+  # turn string NAs into real NAs
+  if(haz_string == ""){haz_string = NA}
+  
+  # return
+  return(haz_string)
+})
+
+# assign back to dataframe
+caprisons_wide$haz_string = all_haz_string
+
+
+```
+
+
+## Standards 
+```{r}
+
+# unique first then paste
+
+all_standards_string = apply(caprisons_wide, 1, FUN = function(vrow) {
+  
+  # get all haz columns
+  stndrds = vrow[names(vrow)[grepl("standardnumber\\.\\d", names(vrow), perl = TRUE)]]
+  stndrds = unique(stndrds)
+  
+  # combine into single string
+  stndrds_string = paste0(stndrds[!is.na(stndrds)], collapse = ", ")
+  
+  # turn string NAs into real NAs
+  if(stndrds_string == ""){stndrds_string = NA}
+  
+  # return
+  return(stndrds_string)
+})
+
+# assign back to dataframe
+caprisons_wide$standards_string = all_standards_string
+
+
+
+
+```
+
+# Subset the Wide Data to Only Show Desired Columns
+```{r}
+
+caprisons_dt = caprisons_wide %>% select((c("estab_name","site_address.1", "site_city.1", "site_state.1", "site_zip.1", "nr_times_in_data.1", "nr_violations.1", "nr_instances_total.1", "low_gravity_sum.1", "mod_gravity_sum.1", "high_gravity_sum.1", "other_than_serious_sum.1", "repeat_violations_sum.1", "serious_violations_sum.1", "avg_ppl_in_facility.1", "total_exposed.1", "iptotal.1", "cptotal.1", "ipavg.1", "cpavg.1", "fta_total.1", "haz_string", "standards_string")))
+
+```
+
+
+
+
+## Set up the DT Table
+
+```{r}
+dt = datatable(caprisons_dt,
+          class = "display",
+          rownames = FALSE,
+          filter = "top",
+          colnames = c("Facility", "Address", "City", "State", "Zipcode", 
+                       "Number of Inspections/Citations", "Number of Violations",
+                       "Total Number of Instances", "Total Low Gravity Violation",
+                       "Total Moderate Gravity Violations", 
+                       "Total High Gravity Violations", 
+                       "Total 'Other than Serious' Violations", 
+                       "Total Repeat Violations", "Total Serious Violations", 
+                       "Average # of People in Facility", "Total Ever Exposed", 
+                       "Total Initial Penalty", "Total Current Penalty", 
+                       "Average Initial Penalty", "Average Current Penalty" , 
+                       "Failure to Abate Penalty", 
+                       "Any Reported Hazardous Substances", 
+                       "All Standards Cited"),
+            caption = 
+            htmltools::tags$caption("\n OSHA Inspections and Violations Data for California Carceral Facilities 2009-2019", 
+            style = "color:black; caption-side: top; text-align:left; font-size: 125%; font-weight = bolder"),
+          options = 
+          list(
+          pageLength = 25,
+          lengthMenu = c(25, 50, 75, 100, 150),
+          initComplete = JS("function(settings, json) {",
+       "$(this.api().table().header()).css({'background-color': '#fff', 'color': '#000','font-size': '100%'});",
+    "}")
+)) %>% 
+  formatStyle(
+    "iptotal.1",
+    background = styleColorBar(caprisons_dt$iptotal.1, color = 'steelblue'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+  ) %>%
+   formatStyle(
+    "cptotal.1",
+    background = styleColorBar(caprisons_dt$cptotal.1, color = 'lightblue'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>%
+  formatStyle(
+    "ipavg.1",
+    background = styleColorBar(caprisons_dt$ipavg.1, color = 'steelblue'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>%
+  formatStyle(
+    "cpavg.1",
+    background = styleColorBar(caprisons_dt$cpavg.1, color = 'lightblue'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>%
+   formatStyle(
+    "avg_ppl_in_facility.1",
+    background = styleColorBar(caprisons_dt$avg_ppl_in_facility.1, color = '#2ca25f'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>%
+    formatStyle(
+    "total_exposed.1",
+    background = styleColorBar(caprisons_dt$total_exposed.1, color = '#99d8c9'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>%
+  formatStyle(
+    "nr_times_in_data.1",
+    background = styleColorBar(caprisons_dt$nr_times_in_data.1, color = '#756bb1'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>%
+   formatStyle(
+    "nr_violations.1",
+    background = styleColorBar(caprisons_dt$nr_violations.1, color = '#bcbddc'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>%
+   formatStyle(
+    "nr_instances_total.1",
+    background = styleColorBar(caprisons_dt$nr_instances_total.1, color = '#efedf5'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>%
+  formatStyle(
+    "low_gravity_sum.1",
+    background = styleColorBar(caprisons_dt$low_gravity_sum.1, color = '#fee8c8'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>%
+  formatStyle(
+    "mod_gravity_sum.1",
+    background = styleColorBar(caprisons_dt$mod_gravity_sum.1, color = '#fdbb84'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>%
+  formatStyle(
+    "high_gravity_sum.1",
+    background = styleColorBar(caprisons_dt$high_gravity_sum.1, color = '#e34a33'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>%
+  formatStyle(
+    "serious_violations_sum.1",
+    background = styleColorBar(caprisons_dt$serious_violations_sum.1, color = '#de2d26'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>%
+  formatStyle(
+    "repeat_violations_sum.1",
+    background = styleColorBar(caprisons_dt$repeat_violations_sum.1, color = '#fc9272'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>%
+  formatStyle(
+    "other_than_serious_sum.1",
+    background = styleColorBar(caprisons_dt$other_than_serious_sum.1, color = '#fee0d2'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>% 
+  formatStyle(columns = c("standards_string", "haz_string"), fontSize = '75%') %>%
+  formatStyle("standards_string","white-space"="normal") %>% 
+  formatCurrency(columns = c("iptotal.1", "cptotal.1", "ipavg.1", "cpavg.1", "fta_total.1"), currency = "$")
+ 
+
+
+
+# I would like to have a footnote but it seems like I would have to build a container
+
+
+
+```
+
+
+# Carceral Facilities in the OSHA Data from 2009 to 2019 and Their Record for Hazards and Toxicity
+```{r}
+dt
+
+```
+
+
+
