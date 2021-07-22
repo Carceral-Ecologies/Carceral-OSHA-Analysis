@@ -364,7 +364,7 @@ caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(es
 }))
 
   # Format to two decimals
-  caprisons$case_days_open_mean = as.numeric(formatC(caprisons$case_days_open_mean, digits = 2, format = "f"))
+  caprisons$case_days_open_mean = as.numeric(formatC(caprisons$case_days_open_mean, digits = 0, format = "f"))
 
 # Check work
 # view(caprisons[, c("estab_name", "open_date", "close_case_date", "case_days_open", "case_days_open_sum", "case_days_open_mean")])
@@ -549,7 +549,7 @@ caprisons_wide$standards_string = all_standards_string
 
 ```
 
-# Create list of activity nrs
+# Create list of activity nrs and count of times investigated
 
 ```{r}
 
@@ -574,29 +574,22 @@ all_activity_string = apply(caprisons_wide, 1, FUN = function(vrow) {
 # assign back to dataframe
 caprisons_wide$actv_string = all_activity_string
 
-```
 
-
-# Further Formating
-
-```{r}
-# change decimal on average number of days open to round up the nearest day
-# think about changing day to weeks or months for easier interpretation
-# change union present to yes or no. and probably only keep this one for the table. 
-# add the color bars to the new variables. 
-# it would be nice to be able to add the activity nrs for people to search on the osha page.
-# I need to create a count by activity nr. BEcause that gives us the total number of inspections. then we have the total nr of violations. That should help with that issue. 
+# counts the number of activity_nrs to get count of total times investigated
+invest_count = caprisons %>% group_by(estab_name) %>% summarise(count = n_distinct(activity_nr))
+caprisons_wide$nr_investigations = invest_count$count
 
 ```
+
 
 # Subset the Wide Data to Only Show Desired Columns
 ```{r}
 # For full wide data
-#caprisons_dt = caprisons_wide %>% select((c("estab_name","site_address.1", "site_city.1", "site_state.1", "site_zip.1", "owner_typef.1", "nr_times_in_data.1", "nr_violations.1", "nr_instances_total.1", "case_days_open_sum.1", "case_days_open_mean.1", "union_present_sum.1", "union_not_present_sum.1", "union_majority.1", "insp_type_accidents_sum.1", "insp_type_complaint_sum.1", "insp_type_referral_sum.1", "insp_type_followup_sum.1", "insp_type_unprogrammed_sum.1", "insp_type_planned_sum.1", "insp_type_fat_cat.1", "insp_scope_complete_sum.1", "insp_scope_partial_sum.1", "low_gravity_sum.1", "mod_gravity_sum.1", "high_gravity_sum.1", "other_than_serious_sum.1", "repeat_violations_sum.1", "serious_violations_sum.1", "avg_ppl_in_facility.1", "total_exposed.1", "iptotal.1", "cptotal.1", "ipavg.1", "cpavg.1",  "fta_total.1", "haz_string", "standards_string")))
+#caprisons_dt = caprisons_wide %>% select((c("estab_name","site_address.1", "site_city.1", "site_state.1", "site_zip.1", "owner_typef.1", "nr_times_in_data.1", "nr_violations.1", "nr_instances_total.1", "case_days_open_sum.1", "case_days_open_mean.1", "union_present_sum.1", "union_not_present_sum.1", "union_majority.1", "insp_type_accidents_sum.1", "insp_type_complaint_sum.1", "insp_type_referral_sum.1", "insp_type_followup_sum.1", "insp_type_unprogrammed_sum.1", "insp_type_planned_sum.1", "insp_type_fat_cat.1", "insp_scope_complete_sum.1", "insp_scope_partial_sum.1", "low_gravity_sum.1", "mod_gravity_sum.1", "high_gravity_sum.1", "other_than_serious_sum.1", "repeat_violations_sum.1", "serious_violations_sum.1", "avg_ppl_in_facility.1", "total_exposed.1", "iptotal.1", "cptotal.1", "ipavg.1", "cpavg.1",  "fta_total.1", "haz_string", "standards_string", "nr_investigations")))
 
 # For Table
 
-caprisons_dt = caprisons_wide %>% select((c("estab_name","site_address.1", "site_city.1", "site_state.1", "site_zip.1", "owner_typef.1", "actv_string", "standards_string", "haz_string", "nr_times_in_data.1", "nr_violations.1", "nr_instances_total.1", "case_days_open_sum.1", "case_days_open_mean.1", "low_gravity_sum.1", "mod_gravity_sum.1", "high_gravity_sum.1", "other_than_serious_sum.1", "repeat_violations_sum.1", "serious_violations_sum.1", "avg_ppl_in_facility.1", "total_exposed.1", "iptotal.1", "cptotal.1", "ipavg.1", "cpavg.1",  "fta_total.1", "union_present_sum.1", "union_not_present_sum.1", "insp_type_accidents_sum.1", "insp_type_complaint_sum.1", "insp_type_referral_sum.1", "insp_type_followup_sum.1", "insp_type_unprogrammed_sum.1", "insp_type_planned_sum.1", "insp_type_fat_cat.1",  "insp_scope_complete_sum.1", "insp_scope_partial_sum.1")))
+caprisons_dt = caprisons_wide %>% select((c("estab_name","site_address.1", "site_city.1", "site_state.1", "site_zip.1", "owner_typef.1", "actv_string", "standards_string", "haz_string", "nr_investigations", "nr_violations.1", "nr_instances_total.1", "case_days_open_sum.1", "case_days_open_mean.1", "low_gravity_sum.1", "mod_gravity_sum.1", "high_gravity_sum.1", "other_than_serious_sum.1", "repeat_violations_sum.1", "serious_violations_sum.1", "avg_ppl_in_facility.1", "total_exposed.1", "iptotal.1", "cptotal.1", "ipavg.1", "cpavg.1",  "fta_total.1", "union_present_sum.1", "union_not_present_sum.1", "insp_type_accidents_sum.1", "insp_type_complaint_sum.1", "insp_type_referral_sum.1", "insp_type_followup_sum.1", "insp_type_unprogrammed_sum.1", "insp_type_planned_sum.1", "insp_type_fat_cat.1",  "insp_scope_complete_sum.1", "insp_scope_partial_sum.1")))
 
 ```
 
@@ -612,7 +605,7 @@ dt = datatable(caprisons_dt,
                        "Inspection Number(s)",
                        "All Standards Cited",
                        "Any Reported Hazardous Substances",
-                       "Number of Inspections/Citations", "Number of Violations",
+                       "Number of Inspections", "Number of Violations",
                        "Total Number of Citation Instances", 
                        "Total Days all Inspections Open", 
                        "Average Number of Days all Inspections Open",
@@ -690,8 +683,8 @@ dt = datatable(caprisons_dt,
     backgroundPosition = 'center'
    ) %>%
   formatStyle(
-    "nr_times_in_data.1",
-    background = styleColorBar(caprisons_dt$nr_times_in_data.1, color = '#756bb1'),
+    "nr_investigations",
+    background = styleColorBar(caprisons_dt$nr_investigations, color = '#756bb1'),
     backgroundSize = '100% 90%',
     backgroundRepeat = 'no-repeat',
     backgroundPosition = 'center'
@@ -856,7 +849,6 @@ dt = datatable(caprisons_dt,
  
 
 
-
 ```
 
 
@@ -869,7 +861,7 @@ dt
 # Export Wide Data
 ```{r}
 
-write.csv(caprisons_dt, file = "CA_prison_insp_viol_2010_op_fac_wide.csv", row.names = FALSE)
+# write.csv(caprisons_dt, file = "CA_prison_insp_viol_2010_op_fac_wide.csv", row.names = FALSE)
 ```
 
 
