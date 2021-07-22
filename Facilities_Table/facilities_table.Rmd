@@ -641,8 +641,8 @@ dt = datatable(caprisons_dt,
             style = "color:black; caption-side: top; text-align:left; font-size: 125%; font-weight = bolder"),
           options = 
           list(
-          pageLength = 50,
-          lengthMenu = c(50, 75, 100, 150),
+          pageLength = 25,
+          lengthMenu = c(25, 50, 75, 100, 150),
           initComplete = JS("function(settings, json) {",
        "$(this.api().table().header()).css({'background-color': '#fff', 'color': '#000','font-size': '100%'});",
     "}")
