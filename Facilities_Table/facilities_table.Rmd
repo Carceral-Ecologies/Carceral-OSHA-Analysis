@@ -14,6 +14,7 @@ output:
 xfun::session_info('DT')
 library(DT)
 library("tidyverse")
+library("lubridate")
 
 ```
 
@@ -179,6 +180,95 @@ caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(es
 
 ```
 
+## Inspection Scope
+
+```{r}
+# A - complete, B- partial, D - noinspection
+
+caprisons$insp_scope_complete = ifelse(grepl("A", caprisons$insp_scope), 1, 0)
+caprisons$insp_scope_partial = ifelse(grepl("B", caprisons$insp_scope), 1, 0)
+
+# Total complete inspections
+
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$insp_scope_complete_sum = sum(estb$insp_scope_complete, na.rm = TRUE)
+  return(estb)
+}))
+
+# Total partial inspections
+
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$insp_scope_partial_sum = sum(estb$insp_scope_partial, na.rm = TRUE)
+  return(estb)
+}))
+
+
+```
+
+
+## Inspection Type
+
+```{r}
+# A - Accident, B - Complaint, C - Referral, F - Follow up, G - Unprog rel, H - Planned, J - Unprog other,  M - Fat/Cat
+# I think I will combine the unprog rel and other. 
+
+# Recode the variables to dummy variables so we can count the number of inspection types
+
+caprisons$insp_type_accidents = ifelse(grepl("A", caprisons$insp_type), 1, 0)
+caprisons$insp_type_complaint = ifelse(grepl("B", caprisons$insp_type), 1, 0)
+caprisons$insp_type_referral = ifelse(grepl("C", caprisons$insp_type), 1, 0)
+caprisons$insp_type_followup = ifelse(grepl("F", caprisons$insp_type), 1, 0)
+caprisons$insp_type_unprogrammed = ifelse(grepl("G", caprisons$insp_type), 1, 0)
+caprisons$insp_type_unprogrammed = ifelse(grepl("J", caprisons$insp_type), 1, 0)
+caprisons$insp_type_planned = ifelse(grepl("H", caprisons$insp_type), 1, 0)
+caprisons$insp_type_fat_cat = ifelse(grepl("M", caprisons$insp_type), 1, 0)
+
+
+# Total accident
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$insp_type_accidents_sum = sum(estb$insp_type_accidents, na.rm = TRUE)
+  return(estb)
+}))
+
+# Total complaint
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$insp_type_complaint_sum = sum(estb$insp_type_complaint, na.rm = TRUE)
+  return(estb)
+}))
+
+# Total referrals
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$insp_type_referral_sum = sum(estb$insp_type_referral, na.rm = TRUE)
+  return(estb)
+}))
+
+# Total insp_type_followup
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$insp_type_followup_sum = sum(estb$insp_type_followup, na.rm = TRUE)
+  return(estb)
+}))
+
+# Total insp_type_unprogrammed
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$insp_type_unprogrammed_sum = sum(estb$insp_type_unprogrammed, na.rm = TRUE)
+  return(estb)
+}))
+
+
+# Total insp_type_planned
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$insp_type_planned_sum = sum(estb$insp_type_planned, na.rm = TRUE)
+  return(estb)
+}))
+
+# Total fatality/catastrophes
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$insp_type_fat_cat_sum = sum(estb$insp_type_fat_cat, na.rm = TRUE)
+  return(estb)
+}))
+
+
+```
 
 
 ## Number of People Exposed
@@ -211,9 +301,78 @@ caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(es
 
 ```
 
+## Union Status
+
+```{r}
+# Recode
+caprisons$union_status_r = caprisons$union_status
+caprisons$union_status_r = ifelse(grepl("A", caprisons$union_status_r), "Y", caprisons$union_status_r)
+caprisons$union_status_r = ifelse(grepl("B", caprisons$union_status_r), "N", caprisons$union_status_r)
+caprisons$union_status_rp = ifelse(grepl("Y", caprisons$union_status_r), 1, 0) # present
+caprisons$union_status_rnp = ifelse(grepl("N", caprisons$union_status_r), 1, 0) # not present
+
+# Number of times union ever present during inspection
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estab){
+  estab$union_present_sum = sum(estab$union_status_rp, na.rm = TRUE)
+  return(estab)
+}))
+
+# Number of times union not present during inspection
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estab){
+  estab$union_not_present_sum = sum(estab$union_status_rnp, na.rm = TRUE)
+  return(estab)
+}))
+
+# union present a majority of the times inspected 
+caprisons$union_majority = ifelse((caprisons$union_present_sum > caprisons$union_not_present_sum), 1, 0)
+
+
+```
+
+# Open and Close Dates 
+
+
+```{r}
+# Length of Time Inspection/Violation Open
+# Set up
+caprisons$open_date = mdy(caprisons$open_date)
+caprisons$close_case_date = mdy(caprisons$close_case_date)
+
+caprisons$open_close_interval = caprisons$open_date %--% caprisons$close_case_date
+caprisons$open_close_duration = as.duration(caprisons$open_close_interval)
+caprisons$open_close_period = as.period(caprisons$open_close_interval)
+
+# Days Open
+caprisons$case_days_open = caprisons$open_close_duration / ddays(1)
+# Weeks Open
+caprisons$case_weeks_open = caprisons$open_close_duration / dweeks(1)
+# Months Open
+caprisons$case_months_open = caprisons$open_close_duration / dmonths(1)
+# Years Open
+caprisons$case_years_open = caprisons$open_close_duration / dyears(1)
+
+# Total # Days all Inspections Open
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estab){
+  estab$case_days_open_sum = sum(estab$case_days_open, na.rm = TRUE)
+  return(estab)
+}))
+
+# Average # Days all Inspections Open
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estab){
+  estab$case_days_open_mean = mean(estab$case_days_open, na.rm = TRUE)
+  return(estab)
+}))
+
+  # Format to two decimals
+  caprisons$case_days_open_mean = as.numeric(formatC(caprisons$case_days_open_mean, digits = 2, format = "f"))
+
+# Check work
+# view(caprisons[, c("estab_name", "open_date", "close_case_date", "case_days_open", "case_days_open_sum", "case_days_open_mean")])
+
+```
 
 # Data Cleaning Steps
-## Hazardous Substances and Standards
+## Hazardous Substances, Standards, and Activity Nrs
 
 ```{r}
 # Recode the hazardous substances
@@ -259,6 +418,8 @@ caprisons$standardnumber = caprisons$standardc
 caprisons$standardnumber = gsub("[A-Za-z].*", "", caprisons$standardnumber)
 
 
+# Change class of activity nr
+caprisons$activity_nr = as.character(caprisons$activity_nr)
 
 ```
 
@@ -266,6 +427,36 @@ caprisons$standardnumber = gsub("[A-Za-z].*", "", caprisons$standardnumber)
 
 ```{r}
 caprisons$site_zip = as.character(caprisons$site_zip)
+
+```
+
+## Owner Type
+
+```{r}
+# Some of the facilities are listing different owner types. I review those facilities and assign them an owner type based on what I can determine from googling. 
+
+caprisons[which(caprisons$estab_name == "BARRY J NIDORF JUVENILE HALL"), "owner_type"] = "B"
+caprisons[which(caprisons$estab_name == "CA DEPT OF STATE HOSPITALS"), "owner_type"] = "C"
+caprisons[which(caprisons$estab_name == "CALIFORNIA INSTITUTION FOR MEN (CIM)"), "owner_type"] = "C"
+caprisons[which(caprisons$estab_name == "CALIFORNIA STATE PRISON-LOS ANGELES COUNTY (LAC)"), "owner_type"] = "C"
+caprisons[which(caprisons$estab_name == "CALIPATRIA STATE PRISON"), "owner_type"] = "C"
+caprisons[which(caprisons$estab_name == "CHUCKAWALLA VALLEY STATE PRISON (CVSP)"), "owner_type"] = "C"
+caprisons[which(caprisons$estab_name == "DEUEL VOCATIONAL INSTITUTION (DVI)"), "owner_type"] = "C"
+caprisons[which(caprisons$estab_name == "IRONWOOD STATE PRISON (ISP)"), "owner_type"] = "C"
+caprisons[which(caprisons$estab_name == "N.A. CHADERJIAN YOUTH CORRECTIONAL FACILITY"), "owner_type"] = "C"
+caprisons[which(caprisons$estab_name == "PITCHESS DETENTION CENTER"), "owner_type"] = "B"
+caprisons[which(caprisons$estab_name == "VENTURA YOUTH CORRECTIONAL FACILITY"), "owner_type"] = "C"
+
+# Recode 
+caprisons$owner_typef = caprisons$owner_type
+caprisons$owner_typef = factor(caprisons$owner_typef,
+                                  levels = c("A", "B", "C", "D"),
+                                  labels = c("PRIVATE",
+                                             "LOCAL GOVERNMENT",
+                                             "STATE GOVERNMENT",
+                                             "FEDERAL GOVERNMENT"))
+
+
 
 ```
 
@@ -279,7 +470,7 @@ caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(es
   return(estab)
 }))
 
-keepcolumns <- c("estab_name",  "site_address", "site_city", "site_state", "site_zip","estab_count", "nr_times_in_data", "nr_violations", "nr_instances_total", "total_exposed", "avg_ppl_in_facility", "low_gravity_sum", "mod_gravity_sum", "high_gravity_sum","other_than_serious_sum", "repeat_violations_sum", "serious_violations_sum", "cptotal", "iptotal", "ipavg", "cpavg", "fta_total", "hazsub1_recode", "hazsub2_recode", "hazsub3_recode", "standardnumber")
+keepcolumns <- c("estab_name",  "site_address", "site_city", "site_state", "site_zip","estab_count", "nr_times_in_data", "nr_violations", "nr_instances_total", "total_exposed", "avg_ppl_in_facility", "low_gravity_sum", "mod_gravity_sum", "high_gravity_sum","other_than_serious_sum", "repeat_violations_sum", "serious_violations_sum", "cptotal", "iptotal", "ipavg", "cpavg", "fta_total", "hazsub1_recode", "hazsub2_recode", "hazsub3_recode", "standardnumber", "owner_typef", "union_present_sum", "union_not_present_sum", "union_majority", "case_days_open_sum", "case_days_open_mean", "insp_type_accidents_sum", "insp_type_complaint_sum", "insp_type_referral_sum", "insp_type_followup_sum", "insp_type_unprogrammed_sum", "insp_type_planned_sum", "insp_type_fat_cat", "insp_scope_complete_sum", "insp_scope_partial_sum", "activity_nr")
 
 
 caprisonsk = caprisons[keepcolumns]
@@ -358,14 +549,56 @@ caprisons_wide$standards_string = all_standards_string
 
 ```
 
-# Subset the Wide Data to Only Show Desired Columns
+# Create list of activity nrs
+
 ```{r}
 
-caprisons_dt = caprisons_wide %>% select((c("estab_name","site_address.1", "site_city.1", "site_state.1", "site_zip.1", "nr_times_in_data.1", "nr_violations.1", "nr_instances_total.1", "low_gravity_sum.1", "mod_gravity_sum.1", "high_gravity_sum.1", "other_than_serious_sum.1", "repeat_violations_sum.1", "serious_violations_sum.1", "avg_ppl_in_facility.1", "total_exposed.1", "iptotal.1", "cptotal.1", "ipavg.1", "cpavg.1", "fta_total.1", "haz_string", "standards_string")))
+# unique first then paste
+
+all_activity_string = apply(caprisons_wide, 1, FUN = function(vrow) {
+  
+  # get all haz columns
+  actv = vrow[names(vrow)[grepl("activity_nr\\.\\d", names(vrow), perl = TRUE)]]
+  actv = unique(actv)
+  
+  # combine into single string
+  actv_string = paste0(actv[!is.na(actv)], collapse = ", ")
+  
+  # turn string NAs into real NAs
+  if(actv_string == ""){actv_string = NA}
+  
+  # return
+  return(actv_string)
+})
+
+# assign back to dataframe
+caprisons_wide$actv_string = all_activity_string
 
 ```
 
 
+# Further Formating
+
+```{r}
+# change decimal on average number of days open to round up the nearest day
+# think about changing day to weeks or months for easier interpretation
+# change union present to yes or no. and probably only keep this one for the table. 
+# add the color bars to the new variables. 
+# it would be nice to be able to add the activity nrs for people to search on the osha page.
+# I need to create a count by activity nr. BEcause that gives us the total number of inspections. then we have the total nr of violations. That should help with that issue. 
+
+```
+
+# Subset the Wide Data to Only Show Desired Columns
+```{r}
+# For full wide data
+#caprisons_dt = caprisons_wide %>% select((c("estab_name","site_address.1", "site_city.1", "site_state.1", "site_zip.1", "owner_typef.1", "nr_times_in_data.1", "nr_violations.1", "nr_instances_total.1", "case_days_open_sum.1", "case_days_open_mean.1", "union_present_sum.1", "union_not_present_sum.1", "union_majority.1", "insp_type_accidents_sum.1", "insp_type_complaint_sum.1", "insp_type_referral_sum.1", "insp_type_followup_sum.1", "insp_type_unprogrammed_sum.1", "insp_type_planned_sum.1", "insp_type_fat_cat.1", "insp_scope_complete_sum.1", "insp_scope_partial_sum.1", "low_gravity_sum.1", "mod_gravity_sum.1", "high_gravity_sum.1", "other_than_serious_sum.1", "repeat_violations_sum.1", "serious_violations_sum.1", "avg_ppl_in_facility.1", "total_exposed.1", "iptotal.1", "cptotal.1", "ipavg.1", "cpavg.1",  "fta_total.1", "haz_string", "standards_string")))
+
+# For Table
+
+caprisons_dt = caprisons_wide %>% select((c("estab_name","site_address.1", "site_city.1", "site_state.1", "site_zip.1", "owner_typef.1", "actv_string", "standards_string", "haz_string", "nr_times_in_data.1", "nr_violations.1", "nr_instances_total.1", "case_days_open_sum.1", "case_days_open_mean.1", "low_gravity_sum.1", "mod_gravity_sum.1", "high_gravity_sum.1", "other_than_serious_sum.1", "repeat_violations_sum.1", "serious_violations_sum.1", "avg_ppl_in_facility.1", "total_exposed.1", "iptotal.1", "cptotal.1", "ipavg.1", "cpavg.1",  "fta_total.1", "union_present_sum.1", "union_not_present_sum.1", "insp_type_accidents_sum.1", "insp_type_complaint_sum.1", "insp_type_referral_sum.1", "insp_type_followup_sum.1", "insp_type_unprogrammed_sum.1", "insp_type_planned_sum.1", "insp_type_fat_cat.1",  "insp_scope_complete_sum.1", "insp_scope_partial_sum.1")))
+
+```
 
 
 ## Set up the DT Table
@@ -375,9 +608,15 @@ dt = datatable(caprisons_dt,
           class = "display",
           rownames = FALSE,
           filter = "top",
-          colnames = c("Facility", "Address", "City", "State", "Zipcode", 
+          colnames = c("Facility", "Address", "City", "State", "Zipcode", "Facility Type",
+                       "Inspection Number(s)",
+                       "All Standards Cited",
+                       "Any Reported Hazardous Substances",
                        "Number of Inspections/Citations", "Number of Violations",
-                       "Total Number of Instances", "Total Low Gravity Violation",
+                       "Total Number of Citation Instances", 
+                       "Total Days all Inspections Open", 
+                       "Average Number of Days all Inspections Open",
+                       "Total Low Gravity Violation",
                        "Total Moderate Gravity Violations", 
                        "Total High Gravity Violations", 
                        "Total 'Other than Serious' Violations", 
@@ -385,16 +624,25 @@ dt = datatable(caprisons_dt,
                        "Average # of People in Facility", "Total Ever Exposed", 
                        "Total Initial Penalty", "Total Current Penalty", 
                        "Average Initial Penalty", "Average Current Penalty" , 
-                       "Failure to Abate Penalty", 
-                       "Any Reported Hazardous Substances", 
-                       "All Standards Cited"),
+                       "Failure to Abate Penalty",
+                       "Times Union Present at Inspection",
+                       "Times Union Not Present at Inspection",
+                       "Total Inspections Triggered by Accident", 
+                       "Total Inspections Triggered by Complaint", 
+                       "Total Inspections Triggered by Referral", 
+                       "Total Inspections From a Follow Up", 
+                       "Total Unprogrammed Inspections", 
+                       "Total Planned Inspections", 
+                       "Total Inspections Triggered by Fatality or Catastrophe",
+                       "Total Complete Inspections",
+                       "Total Partial Inspections"),
             caption = 
             htmltools::tags$caption("\n OSHA Inspections and Violations Data for California Carceral Facilities 2009-2019", 
             style = "color:black; caption-side: top; text-align:left; font-size: 125%; font-weight = bolder"),
           options = 
           list(
-          pageLength = 25,
-          lengthMenu = c(25, 50, 75, 100, 150),
+          pageLength = 50,
+          lengthMenu = c(50, 75, 100, 150),
           initComplete = JS("function(settings, json) {",
        "$(this.api().table().header()).css({'background-color': '#fff', 'color': '#000','font-size': '100%'});",
     "}")
@@ -504,14 +752,108 @@ dt = datatable(caprisons_dt,
     backgroundRepeat = 'no-repeat',
     backgroundPosition = 'center'
    ) %>% 
-  formatStyle(columns = c("standards_string", "haz_string"), fontSize = '75%') %>%
+    formatStyle(
+    "case_days_open_sum.1",
+    background = styleColorBar(caprisons_dt$case_days_open_sum.1, color = '#5E8B7E'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>% 
+     formatStyle(
+    "case_days_open_mean.1",
+    background = styleColorBar(caprisons_dt$case_days_open_mean.1, color = '#A7C4BC'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>% 
+    formatStyle(
+   "union_present_sum.1",
+    background = styleColorBar(caprisons_dt$union_present_sum.1, color = '#f25f5a'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>% 
+   formatStyle(
+   "union_not_present_sum.1",
+    background = styleColorBar(caprisons_dt$union_not_present_sum.1, color = '#f58682'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>% 
+    formatStyle(
+   "insp_type_accidents_sum.1",
+    background = styleColorBar(caprisons_dt$insp_type_accidents_sum.1, color = '#3C5186'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>% 
+   formatStyle(
+   "insp_type_complaint_sum.1",
+    background = styleColorBar(caprisons_dt$insp_type_complaint_sum.1, color = '#9B72AA'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>% 
+   formatStyle(
+   "insp_type_referral_sum.1",
+    background = styleColorBar(caprisons_dt$insp_type_referral_sum.1, color = '#5D8233'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>% 
+     formatStyle(
+   "insp_type_followup_sum.1",
+    background = styleColorBar(caprisons_dt$insp_type_followup_sum.1, color = '#FFF5DE'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>% 
+   formatStyle(
+   "insp_type_unprogrammed_sum.1",
+    background = styleColorBar(caprisons_dt$insp_type_unprogrammed_sum.1, color = '#93D9A3'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>% 
+   formatStyle(
+   "insp_type_planned_sum.1",
+    background = styleColorBar(caprisons_dt$insp_type_planned_sum.1, color = '#ED8E7C'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>% 
+   formatStyle(
+   "insp_type_fat_cat.1",
+    background = styleColorBar(caprisons_dt$insp_type_fat_cat.1, color = '#A03C78'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>% 
+  formatStyle(
+   "fta_total.1",
+    background = styleColorBar(caprisons_dt$fta_total.1, color = '#53B8BB'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>% 
+   formatStyle(
+   "insp_scope_complete_sum.1",
+    background = styleColorBar(caprisons_dt$insp_scope_complete_sum.1, color = '#F7A440'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>% 
+   formatStyle(
+   "insp_scope_partial_sum.1",
+    background = styleColorBar(caprisons_dt$insp_scope_partial_sum.1, color = '#F6DCBF'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+   ) %>% 
+  formatStyle(columns = c("standards_string", "haz_string", "actv_string"), fontSize = '75%') %>%
   formatStyle("standards_string","white-space"="normal") %>% 
   formatCurrency(columns = c("iptotal.1", "cptotal.1", "ipavg.1", "cpavg.1", "fta_total.1"), currency = "$")
  
-
-
-
-# I would like to have a footnote but it seems like I would have to build a container
 
 
 
@@ -524,5 +866,10 @@ dt
 
 ```
 
+# Export Wide Data
+```{r}
+
+write.csv(caprisons_dt, file = "CA_prison_insp_viol_2010_op_fac_wide.csv", row.names = FALSE)
+```
 
 
