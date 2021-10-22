@@ -7,8 +7,8 @@ output:
   pdf_document: default
 ---
 
-
 # Load Packages and Data
+
 ```{r}
 #### Load in Packages ####
 xfun::session_info('DT')
@@ -76,9 +76,23 @@ caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(es
   return(estb)
 }))
 
+
+# Average difference between initial and current penalties
+
+caprisons$ipcpdif = (caprisons$initial_penalty - caprisons$current_penalty)
+
+caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(estb){
+  estb$avg_ipcpdif = mean(estb$ipcpdif, na.rm = TRUE)
+  return(estb)
+}))
+
+# format to the nearest dollar
+caprisons$avg_ipcpdif = as.numeric(formatC(caprisons$avg_ipcpdif, digits = 0, format = "f"))
+
 ```
 
 ## Number of Times Inspected/Violations
+
 ```{r}
 # Number of times inspected/violations. If they are only in there once, might be bc they were only inspected, no violations. Or they might have been inspected once, again later and have subsequent rows for each violation
 
@@ -144,7 +158,6 @@ caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(es
 
 ```
 
-
 ## Types of Violations
 
 ```{r}
@@ -204,7 +217,6 @@ caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(es
 
 
 ```
-
 
 ## Inspection Type
 
@@ -270,7 +282,6 @@ caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(es
 
 ```
 
-
 ## Number of People Exposed
 
 ```{r}
@@ -329,8 +340,7 @@ caprisons$union_majority = ifelse((caprisons$union_present_sum > caprisons$union
 
 ```
 
-# Open and Close Dates 
-
+# Open and Close Dates
 
 ```{r}
 # Length of Time Inspection/Violation Open
@@ -372,6 +382,7 @@ caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(es
 ```
 
 # Data Cleaning Steps
+
 ## Hazardous Substances, Standards, and Activity Nrs
 
 ```{r}
@@ -460,8 +471,8 @@ caprisons$owner_typef = factor(caprisons$owner_typef,
 
 ```
 
-
 # Reshape the Data to Wide Format
+
 ```{r}
 # reshape the dataset to wide and keep only toxicity variables
 
@@ -470,7 +481,7 @@ caprisons = do.call(rbind, by(caprisons, caprisons$estab_name, FUN = function(es
   return(estab)
 }))
 
-keepcolumns <- c("estab_name",  "site_address", "site_city", "site_state", "site_zip","estab_count", "nr_times_in_data", "nr_violations", "nr_instances_total", "total_exposed", "avg_ppl_in_facility", "low_gravity_sum", "mod_gravity_sum", "high_gravity_sum","other_than_serious_sum", "repeat_violations_sum", "serious_violations_sum", "cptotal", "iptotal", "ipavg", "cpavg", "fta_total", "hazsub1_recode", "hazsub2_recode", "hazsub3_recode", "standardnumber", "owner_typef", "union_present_sum", "union_not_present_sum", "union_majority", "case_days_open_sum", "case_days_open_mean", "insp_type_accidents_sum", "insp_type_complaint_sum", "insp_type_referral_sum", "insp_type_followup_sum", "insp_type_unprogrammed_sum", "insp_type_planned_sum", "insp_type_fat_cat", "insp_scope_complete_sum", "insp_scope_partial_sum", "activity_nr")
+keepcolumns <- c("estab_name",  "site_address", "site_city", "site_state", "site_zip","estab_count", "nr_times_in_data", "nr_violations", "nr_instances_total", "total_exposed", "avg_ppl_in_facility", "low_gravity_sum", "mod_gravity_sum", "high_gravity_sum","other_than_serious_sum", "repeat_violations_sum", "serious_violations_sum", "cptotal", "iptotal", "ipavg", "cpavg", "avg_ipcpdif", "fta_total", "hazsub1_recode", "hazsub2_recode", "hazsub3_recode", "standardnumber", "owner_typef", "union_present_sum", "union_not_present_sum", "union_majority", "case_days_open_sum", "case_days_open_mean", "insp_type_accidents_sum", "insp_type_complaint_sum", "insp_type_referral_sum", "insp_type_followup_sum", "insp_type_unprogrammed_sum", "insp_type_planned_sum", "insp_type_fat_cat", "insp_scope_complete_sum", "insp_scope_partial_sum", "activity_nr")
 
 
 caprisonsk = caprisons[keepcolumns]
@@ -485,6 +496,7 @@ row.names(caprisons_wide) <- 1:nrow(caprisons_wide)
 # Compile list of all Hazards and Standards Reported
 
 ## Hazardous Substances
+
 ```{r}
 # unique first then paste
 
@@ -519,8 +531,8 @@ caprisons_wide$haz_string = all_haz_string
 
 ```
 
+## Standards
 
-## Standards 
 ```{r}
 
 # unique first then paste
@@ -581,18 +593,17 @@ caprisons_wide$nr_investigations = invest_count$count
 
 ```
 
-
 # Subset the Wide Data to Only Show Desired Columns
+
 ```{r}
 # For full wide data
 #caprisons_dt = caprisons_wide %>% select((c("estab_name","site_address.1", "site_city.1", "site_state.1", "site_zip.1", "owner_typef.1", "nr_times_in_data.1", "nr_violations.1", "nr_instances_total.1", "case_days_open_sum.1", "case_days_open_mean.1", "union_present_sum.1", "union_not_present_sum.1", "union_majority.1", "insp_type_accidents_sum.1", "insp_type_complaint_sum.1", "insp_type_referral_sum.1", "insp_type_followup_sum.1", "insp_type_unprogrammed_sum.1", "insp_type_planned_sum.1", "insp_type_fat_cat.1", "insp_scope_complete_sum.1", "insp_scope_partial_sum.1", "low_gravity_sum.1", "mod_gravity_sum.1", "high_gravity_sum.1", "other_than_serious_sum.1", "repeat_violations_sum.1", "serious_violations_sum.1", "avg_ppl_in_facility.1", "total_exposed.1", "iptotal.1", "cptotal.1", "ipavg.1", "cpavg.1",  "fta_total.1", "haz_string", "standards_string", "nr_investigations")))
 
 # For Table
 
-caprisons_dt = caprisons_wide %>% select((c("estab_name","site_address.1", "site_city.1", "site_state.1", "site_zip.1", "owner_typef.1", "actv_string", "standards_string", "haz_string", "nr_investigations", "nr_violations.1", "nr_instances_total.1", "case_days_open_sum.1", "case_days_open_mean.1", "low_gravity_sum.1", "mod_gravity_sum.1", "high_gravity_sum.1", "other_than_serious_sum.1", "repeat_violations_sum.1", "serious_violations_sum.1", "avg_ppl_in_facility.1", "total_exposed.1", "iptotal.1", "cptotal.1", "ipavg.1", "cpavg.1",  "fta_total.1", "union_present_sum.1", "union_not_present_sum.1", "insp_type_accidents_sum.1", "insp_type_complaint_sum.1", "insp_type_referral_sum.1", "insp_type_followup_sum.1", "insp_type_unprogrammed_sum.1", "insp_type_planned_sum.1", "insp_type_fat_cat.1",  "insp_scope_complete_sum.1", "insp_scope_partial_sum.1")))
+caprisons_dt = caprisons_wide %>% select((c("estab_name","site_address.1", "site_city.1", "site_state.1", "site_zip.1", "owner_typef.1", "actv_string", "standards_string", "haz_string", "nr_investigations", "nr_violations.1", "nr_instances_total.1", "case_days_open_sum.1", "case_days_open_mean.1", "low_gravity_sum.1", "mod_gravity_sum.1", "high_gravity_sum.1", "other_than_serious_sum.1", "repeat_violations_sum.1", "serious_violations_sum.1", "avg_ppl_in_facility.1", "total_exposed.1", "iptotal.1", "cptotal.1", "ipavg.1", "cpavg.1",  "fta_total.1", "union_present_sum.1", "union_not_present_sum.1", "insp_type_accidents_sum.1", "insp_type_complaint_sum.1", "insp_type_referral_sum.1", "insp_type_followup_sum.1", "insp_type_unprogrammed_sum.1", "insp_type_planned_sum.1", "insp_type_fat_cat.1",  "insp_scope_complete_sum.1", "insp_scope_partial_sum.1", "avg_ipcpdif.1")))
 
 ```
-
 
 ## Set up the DT Table
 
@@ -851,17 +862,16 @@ dt = datatable(caprisons_dt,
 
 ```
 
-
 # Carceral Facilities in the OSHA Data from 2009 to 2019 and Their Record for Hazards and Toxicity
+
 ```{r}
 dt
 
 ```
 
 # Export Wide Data
+
 ```{r}
 
-# write.csv(caprisons_dt, file = "CA_prison_insp_viol_2010_op_fac_wide.csv", row.names = FALSE)
+write.csv(caprisons_dt, file = "CA_prison_insp_viol_2010_op_fac_wide.csv", row.names = FALSE)
 ```
-
-
