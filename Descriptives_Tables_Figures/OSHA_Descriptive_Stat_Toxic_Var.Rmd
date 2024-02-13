@@ -2,23 +2,45 @@
 title: "OSHA_Descriptive_Stat_Toxic_Var"
 author: "Ambar Mishra"
 date: "4/1/2021"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ## Importing data
 
 ```{r}
+library(formattable)
 cleaned_data <- read.csv("CA_prison_insp_viol_2010_op_fac_long.csv")
 ```
+
+I will subset the data to have only violations. I will work with the noviol column to form this subset. 
+
+Noviol == FALSE means there WAS a violation
+
+```{r}
+cleaned_data_with_violation = cleaned_data[cleaned_data$noviol == FALSE, ]
+#cleaned_data_with_violation
+
+```
+
+
 
 # Calculating Summary Statistics
 
 I will calculate the averages of the toxic variables.
 
+# Amount of Violation Observations
+
+```{r}
+sum(is.na(cleaned_data$viol_type))
+```
+
+
 ## Frequency of Violation Type
 
 ```{r}
-violation_occurances <- table(cleaned_data$viol_type)
+violation_occurances <- table(cleaned_data_with_violation$viol_type)
 violation_occurances
 ```
 
@@ -30,12 +52,35 @@ barplot(violation_occurances, col = rgb(0.2, 0.6, 0.6))
 Here is the interpretation of the output. O stands for other than serious (job safety). R is repeat violation and S is serious. W is willfully violated. 
 
 
+#### Violation types
+
+For the violation types, I can only focus on the amount of occurances for each type of violation. 
+
+```{r}
+violation_frame <- data.frame(violation_occurances)
+formattable(violation_frame, align = 'l')
+```
+
+```{r}
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+```
+
 ## Average of Nr_Instances
 
 ```{r}
-number_instances <- cleaned_data$nr_instances
+number_instances <- cleaned_data_with_violation$nr_instances
 number_instances[is.na(number_instances)] = 0
-# number_instances
+
+
+#number_instances
+```
+
+```{r}
+sum(!is.na(cleaned_data_with_violation$nr_instances))
+#sum(!is.na(gravity_frame))
 ```
 
 Here is our mean:
@@ -46,9 +91,15 @@ num_instances_mean
 ```
 
 ```{r}
-number_instances_median = median(number_instances, na.rm = TRUE)
-number_instances_median
+num_instances_median = median(number_instances, na.rm = TRUE)
+num_instances_median
 ```
+
+```{r}
+num_instances_mode = getmode(number_instances)
+num_instances_mode
+```
+
 
 ```{r}
 num_instances_max = max(number_instances, na.rm = TRUE)
@@ -71,7 +122,18 @@ library(formattable)
 number_instances_frame <- data.frame(number_instances)
 ```
 
-Our average number of instances is 5.49. The highest amount of instances is 1,115. The lowest amount of instances would be 0 as indicated by the NA output. 
+Our average number of instances is 5.49. The highest amount of instances is 1,115. The lowest amount of instances would be 0 as indicated by the NA output. I believe with these low values, this variable does have outliers (especially with the highest amount of instances being 1,115). 
+
+```{r}
+# Facility with 1,115 instances.
+facility_instances = cleaned_data_with_violation[cleaned_data_with_violation$nr_instances == 1115, ]
+facility_instances
+
+```
+
+
+As we can see, the facility with 1,115 number of instances is the Calipatria state prison. The violation type is labeled as O which means it is a not serious violation. 
+
 
 ```{r}
 num_inst_table <- table(number_instances)
@@ -89,9 +151,27 @@ first_plot
 As we can see,  1 is the most frequent amount of number of instances which is reported in our dataset which 625 frequencies throughout the entire dataset. 
 
 ```{r}
-table(cleaned_data$noviol, cleaned_data$nr_instances)
+table(cleaned_data_with_violation$noviol, cleaned_data_with_violation$nr_instances)
 ```
 
+
+#### Number of Instances Table
+
+```{r}
+number_instances_frame_2 <- data.frame(num_instances_min, num_instances_median, num_instances_mean, num_instances_max)
+```
+
+```{r}
+col_name <- paste(c("Minimum", "Median", "mean", "max"), sep = " ")
+names(number_instances_frame_2) <- col_name
+row_names <- paste("Number Instances")
+rownames(number_instances_frame_2) <- row_names
+number_instances_frame_2
+```
+
+```{r}
+formattable(number_instances_frame_2, align = 'l')
+```
 
 
 
@@ -100,24 +180,53 @@ table(cleaned_data$noviol, cleaned_data$nr_instances)
 Note: I will replace the NA values with 0. 
 
 ```{r}
-number_exposed <- cleaned_data$nr_exposed
-number_exposed[is.na(number_exposed)] = 0
+number_exposed <- cleaned_data_with_violation$nr_exposed
+#number_exposed[is.na(number_exposed)] = 0
+number_exposed = na.omit(number_exposed)
 # number_exposed
 ```
 
 I will now find the descriptive statistics for the number of people exposed to hazardous substances. 
 
+```{r}
+sum(!is.na(cleaned_data_with_violation$nr_exposed))
+sum(is.na(cleaned_data_with_violation$nr_exposed))
+
+```
+
+
+
 Here is the average amount of people exposed to a hazardous substance:
 
 ```{r}
 num_expose_mean <- mean(number_exposed)
+num_expose_mean
 ```
 
 ```{r}
 num_expose_max <- max(number_exposed)
+num_expose_max 
+```
+
+
+```{r}
+num_expose_mode = getmode(number_exposed)
+num_expose_mode 
 ```
 
 Our highest amount of people exposed is 2,200 which is heavily alarming. 
+
+Let me find which facility had 2,200 exposed 
+
+```{r}
+facility_expose = cleaned_data_with_violation[cleaned_data_with_violation$nr_exposed == 2200, ]
+facility_expose_name = facility_expose[59, ]
+facility_expose_name
+
+```
+
+
+From this output, I can see that the facility with the highest amount exposed was the California State Prison. The violation type which they were given was an O, which indicates a "other" type of violation instead of a serious type of violation.  
 
 ```{r}
 num_expose_min = min(number_exposed)
@@ -139,6 +248,7 @@ Here I will convert the table into a dataframe:
 
 ```{r}
 num_expose_frame <- as.data.frame(num_expose_table)
+num_expose_frame <- na.omit(num_expose_frame)
 View(num_expose_frame)
 ```
 
@@ -163,21 +273,83 @@ I had developed the number exposed ggplot to contain only until the amount of 20
 library(ggplot2)
 ggplot(num_expose_first_nineteen_frame, mapping = aes(x = number_exposed, y = Freq)) + geom_bar(stat = 'identity', color = 'brown', fill = 'yellow') + ggtitle('Frequency of the Number Exposed') + xlab("Number Exposed") + ylab("Frequency") + theme(plot.title = element_text(hjust = 0.5))
 ```
-facet_wrap() or facet_grid()
+
+```{r}
+sum(is.na(cleaned_data_with_violation$nr_exposed))
+```
+
+Since the data is subsetted to activities with violations, there is a total of 87 NA values in this columns which indicates that OSHA has not conducted inspections in these facilities despite having violations. This is a large amount of NA values which indicate that OSHA has not inspected 87 facilities which have violations. 
+
+#### Number of Exposed
+
+I will use libraries to depict the number of exposed. 
 
 
-how many were in inspection and not violation. 
+```{r}
+library(knitr)
+```
 
-table 
-  number exposed and noviol. shows NA's by inspection only. of these 0's, 200 is cuz no violation. other is not reported. 
+```{r}
+number_exposed_frame <- data.frame(num_expose_min, num_expose_med, num_expose_mean, num_expose_max)
+```
+ 
+ 
+```{r}
+library(tidyverse)
+```
+
+```{r}
+# number_exposed_frame %>%
+#   rename(
+#      minimum = num_expose_min,
+#      maximum = num_expose_max,
+#      mean = num_expose_mean,
+#      median = num_expose_med
+#   )
+```
+
+Let me change the names of the columns and rows of my table. 
+
+
+```{r}
+col_name <- paste(c("Minimum", "Median", "mean", "max"), sep = " ")
+names(number_exposed_frame) <- col_name
+row_names <- paste("Number Exposed")
+rownames(number_exposed_frame) <- row_names
+number_exposed_frame
+``` 
+ 
+```{r}
+colnames(number_exposed_frame)
+```
+
+```{r}
+library(knitr)
+```
+
+
+```{r}
+formattable(number_exposed_frame, align = 'l')
+```
+
+ 
 
 ## Gravity Column 
 
 1 is lowest and 10 is highest. 
 
 ```{r}
-gravity <- cleaned_data$gravity
+gravity <- cleaned_data_with_violation$gravity
 gravity_frame <- data.frame(gravity)
+```
+
+
+Here is the sum of missing observations for the gravity column
+
+```{r}
+sum(is.na(gravity_frame))
+#sum(!is.na(gravity_frame))
+
 ```
 
 Let me obtain some descriptive Statistics for the gravity column. 
@@ -190,10 +362,6 @@ I will remove the NA values to have an accurate calculation:
 # gravity_cleaned
 ```
 
-```{r}
-gravity_mean = mean(gravity)
-gravity_mean
-```
 
 ```{r}
 gravity_table <- table(gravity_frame)
@@ -209,11 +377,7 @@ gravity_plot
 # barplot(gravity_table)
 ```
 
-
-High severity levels!
-Complain alot of bad things!
-
-
+Nearly 250 activities had a fairly high gravity. 
 
 What do the NA's represent?
 
@@ -227,107 +391,61 @@ sum(is.na(gravity))
 sum(cleaned_data$noviol== TRUE)
 ```
 
+There is a total of 439 NA values in this columns which indicates that OSHA has not conducted inspections in these facilities despite having violations. This is a large amount of NA values which indicate that OSHA has not inspected 439 facilities which have violations.
 
+Let us see if the activities which had a gravity label also has a initial penalty label. 
 
-Which prisons had that violation and what violation associated with it. Haz_sub. helps for blog post. Identify those prisons and violation occured. 
+```{r}
+#sum(is.na(cleaned_data_with_violation$initial_penalty))
+x = c(1, 3, 5, 10) # gravity values
+for(i in cleaned_data_with_violation$gravity) {
+  y = ifelse(i !=  x, FALSE, TRUE)
+}
+```
 
-think ab what to highlight. Descriptive table. show mean, median or mode? choose which one. 
+```{r}
+# Filter by NAs in gravity and initial penalties
+sample_frame <- cleaned_data_with_violation[complete.cases(cleaned_data_with_violation)]
+sample_frame
+```
+
+Subset to gravity and inital penalty columns. 
 
 ## Descriptive Statistic Table
 
 ### Descriptive Statistic Tables Per Variables
 
-#### Number of Exposed
-
-I will use libraries to depict the number of exposed. 
-
-
-```{r}
-library(knitr)
-```
-
-```{r}
-number_exposed_frame <- data.frame(num_expose_min, num_expose_med, num_expose_mean, num_expose_max)
-```
-
-Let me change the names of the columns and rows of my table. 
-
-```{r}
-library(tidyverse)
-```
-
-```{r}
-# number_exposed_frame %>%
-#   rename(
-#      minimum = num_expose_min,
-#      maximum = num_expose_max,
-#      mean = num_expose_mean,
-#      median = num_expose_med
-#   )
-```
-
-```{r}
-col_name <- paste(c("Minimum", "Median", "mean", "max"), sep = " ")
-names(number_exposed_frame) <- col_name
-row_names <- paste("Number Exposed")
-rownames(number_exposed_frame) <- row_names
-number_exposed_frame
-```
-
-```{r}
-colnames(number_exposed_frame)
-```
-
-```{r}
-library(knitr)
-```
-
-
-```{r}
-formattable(number_exposed_frame, align = 'l')
-```
-
-#### Number of Instances Table
-
-```{r}
-number_instances_frame_2 <- data.frame(num_instances_min, number_instances_median, num_instances_mean, num_instances_max)
-```
-
-
-```{r}
-col_name <- paste(c("Minimum", "Median", "mean", "max"), sep = " ")
-names(number_instances_frame_2) <- col_name
-row_names <- paste("Number Instances")
-rownames(number_instances_frame_2) <- row_names
-number_instances_frame_2
-```
-
-```{r}
-formattable(number_instances_frame_2, align = 'l')
-```
-
-#### Violation types
-
-For the violation types, I can only focus on the amount of occurances for each type of violation. 
-
-```{r}
-violation_frame <- data.frame(violation_occurances)
-formattable(violation_frame, align = 'l')
-```
 
 #### Combined Data Tables
+
+#### Table for Numerical Variables 
 
 ```{r}
 table_1 <- rbind(number_instances_frame_2,number_exposed_frame)
 formattable(table_1, align ='l')
 ```
 
-### Intial Penalty
+
+
+
+
+
+
+
+### Initial Penalty
+
+We are going to treat this column along with the current penalty column as numeric. 
 
 ```{r}
-initial_penalty_column <- cleaned_data$initial_penalty
+initial_penalty_column <- cleaned_data_with_violation$initial_penalty
 initial_penalty_table <- table(initial_penalty_column)
 initial_penalty_table
+```
+
+Here are the amount of missing observations
+
+```{r}
+sum(!is.na(cleaned_data_with_violation$initial_penalty))
 ```
 
 
@@ -338,7 +456,38 @@ initial_penalty_frame <- data.frame(initial_penalty_table)
 initial_penalty_frame
 ```
 
-Ask about graphs! check quartiles and qunitiles. Showing that. Moderate, high end penalties. Check meaning of penalty. 
+Here is our calculation of the initial penalty mean
+
+```{r}
+initial_penalty_mean = mean(initial_penalty_column, na.rm = TRUE)
+initial_penalty_mean
+```
+
+Our initial penalty mean is 1673.245, which is a large amount. This might be due to the separate labeling of different levels. 
+
+Calculating initial penalty Median
+
+```{r}
+# Median
+initial_penalty_median = median(initial_penalty_column, na.rm = TRUE)
+initial_penalty_median
+```
+
+The initial penalty value median is 420. 
+
+```{r}
+# Mode
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+# Function citation: https://www.tutorialspoint.com/r/r_mean_median_mode.htm
+
+initial_penalty_mode = getmode(initial_penalty_column)
+initial_penalty_mode
+```
+
+Using another statistic to measure the central tendency, the mode states that our most frequest value is 0 (and this might be due to the large frequency of zeroes in the dataset). 
 
 Here is a graph of the first 20 penalties:
 
@@ -389,6 +538,47 @@ ggplot(data = b) +
 
 This graph is not showing any correlation releationships. 
 
+
+### Current Penalty
+
+```{r}
+current_penalty_column <- cleaned_data_with_violation$current_penalty
+table(current_penalty_column)
+```
+
+```{r}
+#sum(!is.na(cleaned_data_with_violation$current_penalty))
+sum(is.na(cleaned_data_with_violation$current_penalty))
+
+```
+
+I will calculate some summary statistics for this column. 
+
+```{r}
+#  Mean
+current_penalty_mean = mean(current_penalty_column, na.rm = TRUE)
+current_penalty_mean
+```
+
+```{r}
+# Mode
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+# Function citation: https://www.tutorialspoint.com/r/r_mean_median_mode.htm
+
+current_penalty_mode = getmode(current_penalty_column)
+current_penalty_mode
+```
+
+```{r}
+# Median
+current_penalty_median = median(current_penalty_column, na.rm = TRUE)
+current_penalty_median
+```
+
+
 ### Owner Type
 
 There are clearly 4 different levels of owner types. I will form a table containing the occurances of these different owner types. 
@@ -420,7 +610,7 @@ owner_type_frame
 ```
 
 ```{r}
-owner_type_plot <- ggplot(owner_type_frame, aes(x=owner_type_column, y=Freq)) +geom_bar(stat = 'identity', color = 'red', fill = 'blue') + ggtitle('Frequency of the Owner Types') + xlab("Owner Types") + ylab("Frequency") + theme(plot.title = element_text(hjust = 0.5))
+owner_type_plot <- ggplot(owner_type_frame, aes(x=owner_type_column, y=Freq, fill = owner_type_column)) +geom_bar(stat = 'identity') + scale_fill_manual(values = c("A" = "black", "B" = "#1b98e0", "C" = "brown", "D" = "navy"))+ ggtitle('Frequency of the Owner Types') + xlab("Owner Types") + ylab("Frequency") + theme(plot.title = element_text(hjust = 0.5))
 owner_type_plot
 ```
 
@@ -432,7 +622,7 @@ Private vs. State? Either more inspection or violation.
 
 The union status clearly has only 4 levels, which might mean a histogram would be an accurate way of depicting this graph. 
 
-PUT IN GITHUB. 
+
 
 ```{r}
 union_status_column = cleaned_data$union_status
@@ -477,7 +667,13 @@ Here is an easier visual representation of the different owner types present in 
 ### Inspection Type
 
 ```{r}
-insp_type_column = cleaned_data$insp_type
+# Number of Observations
+sum(is.na(insp_type_column))
+```
+
+
+```{r}
+insp_type_column = cleaned_data_with_violation$insp_type
 insp_type_column
 ```
 
@@ -517,6 +713,281 @@ insp_type_plot <- ggplot(insp_type_frame, aes(x=insp_type_column, y=Freq)) +geom
 insp_type_plot
 ```
 
+Here are the summary statistics of inspection type. But before that, let me convert the letters into numbers
+
+```{r}
+insp_type_column = as.numeric(factor(insp_type_column))
+#insp_type_column
+```
+
+```{r}
+insp_type_median = median(insp_type_column)
+insp_type_median
+```
+
+```{r}
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+# Function citation: https://www.tutorialspoint.com/r/r_mean_median_mode.htm
+
+insp_type_mode = getmode(insp_type_column)
+insp_type_mode
+```
+
+### Table for Quantitative Variables 
+
+Quantitative variables for this table: 
+
+Bring all the descriptive variables into one:
+
+Here is the code chunk for initial penalty:
+
+
+```{r}
+initial_penalty = cleaned_data$initial_penalty
+initial_penalty_mean = mean(initial_penalty, na.rm = TRUE) # mean
+```
+
+```{r}
+initial_penalty_without_na = na.omit(initial_penalty)
+```
+
+The initial penalty column had NA values
+
+```{r}
+# Mode
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+```
+
+```{r}
+initial_penalty_mode = getmode(intial_penalty_without_na) # mode
+```
+
+```{r}
+initial_penalty_median = median(initial_penalty, na.rm = TRUE)
+```
+
+
+Checking for BOTH initial penalty and current penalty:
+
+```{r}
+rows_with_initial_zero <- cleaned_data_with_violation$initial_penalty == 0 
+
+# Subset the data frame to get rows where both columns have 0
+result <- cleaned_data_with_violation[rows_with_both_zeros, ]
+
+#rows_with_both_zeros
+result
+```
+
+```{r}
+sum_result <- sum(result$nr_instances, na.rm = TRUE)
+
+# Print the sum result
+print(sum_result)
+```
+
+```{r}
+average_result <- mean(result$nr_instances, na.rm = TRUE)
+
+# Print the average result
+print(average_result)
+```
+
+Now, lets do it for initial penalty outside of zero
+
+```{r}
+rows_not_equal_to_zero <- cleaned_data_with_violation$initial_penalty != 0
+
+# Subset the data frame to get rows where initial_penalty is not equal to zero
+filtered_result <- cleaned_data_with_violation[rows_not_equal_to_zero, ]
+```
+
+
+```{r}
+sum_filtered_result <- sum(filtered_result$nr_instances, na.rm = TRUE)
+
+# Print the sum result
+print(sum_filtered_result)
+```
+
+```{r}
+average_filtered_result <- mean(filtered_result$nr_instances, na.rm = TRUE)
+
+# Print the average result
+print(average_filtered_result)
+```
+
+
+Of those facilities with no gravity ratings - how many had a $0 initial penalty and how many had a $0 current penalty. This might explain what is happening here with the missingness. 
+
+```{r}
+rows_equal_to_no_gravity <- cleaned_data_with_violation$gravity == 'NA'
+gravity_result <- cleaned_data_with_violation[rows_equal_to_no_gravity, ]
+gravity_result # FINISH THIS WITH IS.na
+```
+
+
+
+
+```{r}
+# New attempt 1-29 (THIS WORKS) find NA's in each of the columns. 
+
+gravity_equal_na_dataset <- cleaned_data_with_violation[is.na(cleaned_data_with_violation$gravity), ]
+#subset_data
+
+initial_penalty_equals_zero = table(gravity_equal_na_dataset$initial_penalty)
+initial_penalty_equals_zero
+# count_of_zeros <- sum(subset_data$initial_penalty == 0 & subset_data$current_penalty == 0)
+# count_of_zeros
+
+#complete_initial <- complete.cases(subset_data$initial_penalty)
+#complete_initial
+#subset_data <- df[complete_cases, ]
+
+# subset_data <- complete.cases(subset_data$current_penalty)
+# sum(subset_data$initial_penalty == 0)
+# sum(subset_data$current_penalty == 0)
+
+
+```
+```{r}
+# Current Penalty equals zero
+current_penalty_equals_zero = table(gravity_equal_na_dataset$current_penalty)
+current_penalty_equals_zero
+```
+
+```{r}
+initial_penalty_na_count <- sum(is.na(gravity_equal_na_dataset$initial_penalty))
+initial_penalty_na_count
+```
+
+
+```{r}
+current_penalty_na_count <- sum(is.na(gravity_equal_na_dataset$current_penalty))
+current_penalty_na_count
+```
+
+
+```{r}
+gravity_equal_na_dataset
+```
+
+
+
+```{r}
+rows_not_equal_to_no_gravity 
+```
+
+
+
+```{r}
+cleaned_data_with_violation$
+```
+
+#### Table for Categorical Variables 
+
+
+```{r}
+gravity_df = gravity_frame_2
+colnames(gravity_df) = c("Var1", "Freq")
+gravity_df
+```
+
+```{r}
+violation_frame
+```
+
+```{r}
+#insp_type_frame
+colnames(insp_type_frame) = c("Var1", "Freq")
+insp_type_frame
+```
+
+```{r}
+categorical_df = rbind(violation_frame, gravity_df,insp_type_frame)
+categorical_df
+```
+
+Export to Excel, Add a row with label. Add a column before Rbind with variable name. Same with gravity. 
+
+```{r}
+library(data.table)
+library(flextable)
+
+as_flextable(categorical_df) # combine to one categorical frame
+```
+
+```{r}
+# Quantitative variable data frame
+Mean <- c(initial_penalty_mean, num_instances_mean)
+Median <- c(initial_penalty_median, num_instances_median)
+Mode <- c(initial_penalty_mode, num_instances_mode)
+
+df <- data.frame(Mean, Median, Mode)
+
+row.names(df)= c('initial penalty', 'number of instances')
+print(df)
+```
+
+```{r}
+as_flextable(df)
+```
+```{r}
+# Categorical Variable data
+```
+
+```{r}
+tab <- matrix(c(7, 5, 14, 19, 3, 2, 17, 6, insp_type_median), ncol=3, byrow=TRUE)
+colnames(tab) <- c('Mean','Median','Mode')
+rownames(tab) <- c('rowName1','rowName2','inspection type')
+tab <- as.table(tab)
+tab
+```
+
+
+Check the range of values for numeric values:
+
+```{r}
+initial_penalty_omit_NA = na.omit(cleaned_data_with_violation$initial_penalty)
+max(initial_penalty_omit_NA)
+min(initial_penalty_omit_NA)
+# initial_penalty_range = range(cleaned_data_with_violation$initial_penalty)
+# initial_penalty_range
+```
+
+
+```{r}
+current_penalty_omit_NA = na.omit(cleaned_data_with_violation$current_penalty)
+max(current_penalty_omit_NA)
+min(current_penalty_omit_NA)
+```
+
+```{r}
+cleaned_data_with_violation$nr_instances
+```
+
+```{r}
+num_instances_omit_NA = na.omit(cleaned_data_with_violation$nr_instances)
+max(num_instances_omit_NA)
+min(num_instances_omit_NA)
+```
+
+```{r}
+num_exposed_omit_NA = na.omit(cleaned_data_with_violation$nr_exposed)
+max(num_exposed_omit_NA)
+min(num_exposed_omit_NA)
+```
+
+
+
+
+### Extra comments
 Comparing activity numbers and seeing them on the OSHA search tool. 
 
 Discrepencies! See activity numbers and seeing it in the link to see if theres anything listed on website and not in data. 
@@ -526,6 +997,9 @@ Check a systematic or random sample. Alot is missing -> Do a deep dive.
 Add more onto the blog. 
 
 
+min, median, maximum, mean 
+
+treat initial penalty as numeric. All of it factors to a equation. 
 
 
 
